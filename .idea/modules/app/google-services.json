@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "447076420917",
+    "firebase_url": "https://iot3005.firebaseio.com",
+    "project_id": "iot3005",
+    "storage_bucket": "iot3005.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:447076420917:android:3e067ef3d6e48a897e907c",
+        "android_client_info": {
+          "package_name": "thanhnv.tele.samiot"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "447076420917-a092r52d3879u57g0c2cj0d0kqeb5rac.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "thanhnv.tele.samiot",
+            "certificate_hash": "dfcdaab1b281f33669131fb34f0b59f9a47fb61a"
+          }
+        },
+        {
+          "client_id": "447076420917-kiverauskaj92nvgc6ujpfvuvbg4cn3v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAXRVEfzpgKhr-f2jgqH5uXphEa0kOx4RQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "447076420917-kiverauskaj92nvgc6ujpfvuvbg4cn3v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
