@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.app.Activity;
 import android.content.SharedPreferences;
 
 import android.graphics.Color;
@@ -42,7 +43,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
     ImageButton addDevices;
     TextView textView;
 
@@ -62,7 +63,7 @@ public class MainActivity extends AppCompatActivity {
     ///Line Chart
     LineChart mChart;
     LineData lineData;
-    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z"); // the format of your date
+    SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm / dd-MM-yy     "); // the format of your date
 
     ArrayList<Entry> Temp1 = new ArrayList<>();
     ArrayList<Entry> Humi1 = new ArrayList<>();
