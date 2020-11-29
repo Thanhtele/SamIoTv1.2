@@ -110,7 +110,7 @@ void loop() {
 //Reponse status to Hub
 void reponseHub(){
         if(rfData[0]==3){
-            Serial.println("Sending status Devices to Hub");
+            Serial.println("Sending Devices Status to Hub");
             for(int i=1;i<6;i++){
                  rfData[i] = EEPROM.read(i);
             }
