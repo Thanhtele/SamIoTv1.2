@@ -12,19 +12,31 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.TreeMap;
 
 import static thanhnv.tele.samiot.R.drawable.*;
 
-public class DeviceAdapter extends RecyclerView.Adapter< DeviceAdapter.DeviceHolder > {
+public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+    public static final int Room = 1;
+    public static final int Device = 2;
+
     Devices devices;
-    private List<Devices> devicesList;
-    public DeviceAdapter(List< Devices > devicesList) {
+    private ArrayList<Object> devicesList;
+    public DeviceAdapter(ArrayList< Object > devicesList) {
         this.devicesList = devicesList;
     }
 
+    @Override
+    public int getItemViewType(int position) {
+        if (devicesList.get(position) instanceof String)
+            return Room;
+        else if (devicesList.get(position) instanceof Devices)
+            return Device;
+        return -1;
+
+    }
     //////Event Click, change Value
     public interface OnButtonClick {
         void onButtonClick(int value, int position, int listSize);
@@ -41,190 +53,211 @@ public class DeviceAdapter extends RecyclerView.Adapter< DeviceAdapter.DeviceHol
         return (Float) device.values().toArray()[device.values().toArray().length-1];
     }
 
-    @NonNull
     @Override
-    public DeviceHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.devicesdisplay, parent, false);
-        return new DeviceHolder(view);
+    public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        LayoutInflater li = LayoutInflater.from(parent.getContext());
+        switch (viewType){
+            case Room :
+                View viewRoom = li.inflate(R.layout.roomname, parent, false);
+                return new RoomNameHolder(viewRoom);
+            case Device : {
+                View viewDevice = li.inflate(R.layout.devicesdisplay,parent,false);
+                return new DeviceHolder(viewDevice);
+            }
+            default:
+                break;
+        }
+        return null;
     }
 
     @Override
-    public void onBindViewHolder(@NonNull final DeviceHolder holder, final int position) {
-        if(devicesList.size()!=0) {
-            devices = devicesList.get(position);
-
-            holder.deviceName.setText(devices.getName());
-
-            switch (devices.getControlType()) {
-                case "On-Off": {
-                    holder.drawValue.setVisibility(View.INVISIBLE);
-                    holder.sensorValue.setText("");
-                    break;
-                }
-                case "MultiValue": {
-                    holder.btPower.setVisibility(View.INVISIBLE);
-                    holder.sensorValue.setText("");
-                    break;
-                }
-                case "NonControl": {
-                    holder.btPower.setVisibility(View.INVISIBLE);
-                    holder.drawValue.setVisibility(View.INVISIBLE);
-                    break;
-                }
-            }
-
-            ///Online or offline
-            if (devices.getIsOnline() == 1) {
-                holder.connectStatus.setImageResource(status_online);
-                if ( getValue(devices) != 0) {
-                    holder.iconDevice.setImageResource(devices.deviceOn);
+    public void onBindViewHolder(RecyclerView.ViewHolder holderBind, int position1) {
+        final int position = position1;
+        switch (getItemViewType(position)) {
+            case Device: {
+                final DeviceHolder holder = (DeviceHolder) holderBind;
+                devices = (Devices) devicesList.get(position);
+                    holder.deviceName.setText(devices.getName());
                     switch (devices.getControlType()) {
-                        case "NonControl": {
-                            holder.onOffStatus.setText("Online");
+                        case "On-Off": {
+                            holder.btPower.setVisibility(View.VISIBLE);
+                            holder.drawValue.setVisibility(View.INVISIBLE);
+                            holder.sensorValue.setText("");
                             break;
                         }
                         case "MultiValue": {
-                            holder.drawValue.setIndeterminate(false);
-                            holder.onOffStatus.setText("On");
-                            holder.drawValue.setProgress((int) getValue(devices));
-                            holder.sensorValue.setText((int) getValue(devices) + "");
+                            holder.btPower.setVisibility(View.INVISIBLE);
+                            holder.drawValue.setVisibility(View.VISIBLE);
+                            holder.sensorValue.setText("");
                             break;
                         }
-                        case "On-Off": {
-                            holder.onOffStatus.setText("On");
-                            holder.btPower.setBackgroundResource(power_on);
-                            break;
-                        }
-                    }
-
-                    switch (devices.deviceType) {
-                        case "GasSensor": {
-                            holder.sensorValue.setText("Danger!");
-                            holder.backgroundLayout.setBackgroundResource(redbackground);
-                            break;
-                        }
-                        case "TemperatureSensor": {
-                            holder.sensorValue.setText(getValue(devices) + "%C");
-                            break;
-                        }
-                        case "HumiditySensor": {
-                            holder.sensorValue.setText(getValue(devices) + "%");
-                            break;
-                        }
-                    }
-                } else {
-                    holder.iconDevice.setImageResource(devices.deviceOff);
-                    switch (devices.getControlType()) {
                         case "NonControl": {
-                            holder.onOffStatus.setText("Online");
-                            holder.sensorValue.setText("Unknow");
-                            break;
-                        }
-                        case "MultiValue": {
-                            holder.drawValue.setIndeterminate(false);
-                            holder.onOffStatus.setText("Off");
-                            holder.drawValue.setProgress(0);
-                            break;
-                        }
-                        case "On-Off": {
-                            holder.onOffStatus.setText("Off");
-                            holder.btPower.setBackgroundResource(power_off);
+                            holder.btPower.setVisibility(View.INVISIBLE);
+                            holder.drawValue.setVisibility(View.INVISIBLE);
                             break;
                         }
                     }
 
-                    switch (devices.deviceType) {
-                        case "GasSensor": {
-                            holder.sensorValue.setText("Safety");
-                            holder.backgroundLayout.setBackgroundResource(custombackground);
-                            break;
-                        }
-                        case "TemperatureSensor": {
-                            holder.sensorValue.setText("0 °C");
-                            break;
-                        }
-                        case "HumiditySensor": {
-                            holder.sensorValue.setText("0 %");
-                            break;
-                        }
-                    }
-                }
-            } else {
-                holder.connectStatus.setImageResource(status_offline);
-                holder.onOffStatus.setText("Offline");
-                holder.iconDevice.setImageResource(devices.deviceOff);
-                switch (devices.getControlType()) {
-                    case "NonControl": {
-                        holder.sensorValue.setText("Unknow");
-                        break;
-                    }
-                    case "MultiValue": {
-                        holder.drawValue.setIndeterminate(true);///Disable seekbar
-                        break;
-                    }
-                    case "On-Off": {
-                        holder.btPower.setBackgroundResource(power_off);
-                        break;
-                    }
-                }
-            }
-
-            /////////////////////////////Btn Click event
-            holder.btPower.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    devices = devicesList.get(position);
-
+                    ///Online or offline
                     if (devices.getIsOnline() == 1) {
-                        if (getValue(devices) == 0) {
-                            holder.btPower.setBackgroundResource(power_on);
+                        holder.connectStatus.setImageResource(status_online);
+                        holder.onOffStatus.setText("Online");
+                        if (getValue(devices) != 0) {
                             holder.iconDevice.setImageResource(devices.deviceOn);
-                            devices.value.put("value", (float) 1);
-                            holder.onOffStatus.setText("On");
+                            switch (devices.getControlType()) {
+                                case "NonControl": {
+                                    switch (devices.deviceType) {
+                                        case "GasSensor": {
+                                            holder.sensorValue.setText("Danger!");
+                                            holder.backgroundLayout.setBackgroundResource(redbackground);
+                                            break;
+                                        }
+                                        case "TemperatureSensor": {
+                                            holder.sensorValue.setText(getValue(devices) + "°C");
+                                            break;
+                                        }
+                                        case "HumiditySensor": {
+                                            holder.sensorValue.setText(getValue(devices) + "%");
+                                            break;
+                                        }
+                                    }
+                                    break;
+                                }
+                                case "MultiValue": {
+                                    holder.drawValue.setIndeterminate(false);
+                                    holder.onOffStatus.setText("On");
+                                    holder.drawValue.setProgress((int) getValue(devices));
+                                    holder.sensorValue.setText((int) getValue(devices) + "");
+                                    break;
+                                }
+                                case "On-Off": {
+                                    holder.onOffStatus.setText("On");
+                                    holder.btPower.setBackgroundResource(power_on);
+                                    break;
+                                }
+                            }
                         }
                         else {
-                            holder.btPower.setBackgroundResource(power_off);
                             holder.iconDevice.setImageResource(devices.deviceOff);
-                            devices.value.put("value", (float) 0);
-                            holder.onOffStatus.setText("Off");
+                            switch (devices.getControlType()) {
+                                case "NonControl": {
+                                    holder.onOffStatus.setText("Online");
+                                    switch (devices.deviceType) {
+                                        case "GasSensor": {
+                                            holder.sensorValue.setText("Safety");
+                                            holder.backgroundLayout.setBackgroundResource(custombackground);
+                                            break;
+                                        }
+                                        case "TemperatureSensor": {
+                                            holder.sensorValue.setText("0 °C");
+                                            break;
+                                        }
+                                        case "HumiditySensor": {
+                                            holder.sensorValue.setText("0 %");
+                                            break;
+                                        }
+                                    }
+                                    break;
+                                }
+                                case "MultiValue": {
+                                    holder.drawValue.setIndeterminate(false);
+                                    holder.onOffStatus.setText("Off");
+                                    holder.drawValue.setProgress(0);
+                                    holder.sensorValue.setText("0");
+                                    break;
+                                }
+                                case "On-Off": {
+                                    holder.onOffStatus.setText("Off");
+                                    holder.btPower.setBackgroundResource(power_off);
+                                    break;
+                                }
+                            }
                         }
                     }
-                    if (listener != null){
-                        listener.onButtonClick((int) getValue(devices), position, getItemCount());
-                    }
-                }
-            });
-
-            ////SeekbarChangeValue
-            holder.drawValue.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-                @Override
-                public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                    holder.sensorValue.setText(seekBar.getProgress() + "");
-                }
-
-                @Override
-                public void onStartTrackingTouch(SeekBar seekBar) {
-
-                }
-                @Override
-                public void onStopTrackingTouch(SeekBar seekBar) {
-                    devices = devicesList.get(position);
-                    devices.value.put("value", (float) seekBar.getProgress());
-                    if (seekBar.getProgress() != 0){
-                        holder.iconDevice.setImageResource(devices.deviceOn);
-                        holder.onOffStatus.setText("On");
-                    }
                     else {
-                        holder.onOffStatus.setText("Off");
+                        switch (devices.getControlType()) {
+                            case "NonControl": {
+                                holder.sensorValue.setText("Unknow");
+                                break;
+                            }
+                            case "MultiValue": {
+                                holder.drawValue.setIndeterminate(true);///Disable seekbar
+
+                                break;
+                            }
+                            case "On-Off": {
+                                holder.btPower.setBackgroundResource(power_off);
+                                break;
+                            }
+                        }
+                        holder.connectStatus.setImageResource(status_offline);
+                        holder.onOffStatus.setText("Offline");
                         holder.iconDevice.setImageResource(devices.deviceOff);
                     }
-                    if (listener != null) {
-                        listener.onSeekBarChange(seekBar.getProgress(), position, getItemCount());
-                    }
-                }
-            });
-        }
 
+                    /////////////////////////////Btn Click event
+                    holder.btPower.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            devices = (Devices) devicesList.get(position);
+
+                            if (devices.getIsOnline() == 1) {
+                                if (getValue(devices) == 0) {
+                                    holder.btPower.setBackgroundResource(power_on);
+                                    holder.iconDevice.setImageResource(devices.deviceOn);
+                                    devices.value.put("value", (float) 1);
+                                    holder.onOffStatus.setText("On");
+                                } else {
+                                    holder.btPower.setBackgroundResource(power_off);
+                                    holder.iconDevice.setImageResource(devices.deviceOff);
+                                    devices.value.put("value", (float) 0);
+                                    holder.onOffStatus.setText("Off");
+                                }
+                            }
+                            if (listener != null) {
+                                listener.onButtonClick((int) getValue(devices), position, getItemCount());
+                            }
+                        }
+                    });
+
+                    ////SeekbarChangeValue
+                    holder.drawValue.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                        @Override
+                        public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
+                            if (devices.getIsOnline() == 1) holder.sensorValue.setText(seekBar.getProgress() + "");
+                        }
+
+                        @Override
+                        public void onStartTrackingTouch(SeekBar seekBar) {
+
+                        }
+
+                        @Override
+                        public void onStopTrackingTouch(SeekBar seekBar) {
+                            devices = (Devices) devicesList.get(position);
+                            if(devices.isOnline == 1) {
+                                devices.value.put("value", (float) seekBar.getProgress());
+                                if (seekBar.getProgress() != 0) {
+                                    holder.iconDevice.setImageResource(devices.deviceOn);
+                                    holder.onOffStatus.setText("On");
+                                } else {
+                                    holder.onOffStatus.setText("Off");
+                                    holder.iconDevice.setImageResource(devices.deviceOff);
+                                }
+                                if (listener != null) {
+                                    listener.onSeekBarChange(seekBar.getProgress(), position, getItemCount());
+                                }
+                            }
+                        }
+                    });
+                break;
+            }
+            case Room:{
+                RoomNameHolder holder = (RoomNameHolder) holderBind;
+                holder.roomName.setText(devicesList.get(position).toString());
+                break;
+            }
+        }
     }
 
     @Override
@@ -233,7 +266,7 @@ public class DeviceAdapter extends RecyclerView.Adapter< DeviceAdapter.DeviceHol
     }
 
     //////Device View Holder
-    public static class DeviceHolder extends RecyclerView.ViewHolder{
+    public class DeviceHolder extends RecyclerView.ViewHolder{
         ImageButton btPower;
         ImageView iconDevice;
         TextView deviceName;
@@ -252,6 +285,13 @@ public class DeviceAdapter extends RecyclerView.Adapter< DeviceAdapter.DeviceHol
             connectStatus=(ImageView) itemView.findViewById(R.id.connectStatus);
             sensorValue=(TextView) itemView.findViewById(R.id.sensorValue);
             drawValue=(SeekBar) itemView.findViewById(R.id.drawValue);
+        }
+    }
+    public class RoomNameHolder extends RecyclerView.ViewHolder{
+        TextView roomName;
+        public RoomNameHolder(@NonNull View itemView) {
+            super(itemView);
+            roomName = (TextView) itemView.findViewById(R.id.roomId);
         }
     }
 }

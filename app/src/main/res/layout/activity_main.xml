@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/indoorbackground1"
+    android:background="@drawable/background2"
     android:gravity="center"
     android:orientation="vertical"
     android:weightSum="100"
@@ -18,21 +18,37 @@
         android:layout_marginTop="1dp"
         android:layout_marginBottom="3dp"
         android:layout_weight="35"
-        android:background="@null">
+        android:background="@null"
+        android:orientation="vertical"
+        android:weightSum="100">
 
         <com.github.mikephil.charting.charts.LineChart
             android:id="@+id/chart"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="0dp"
 
-            >
+            android:layout_weight="92">
+
+        </com.github.mikephil.charting.charts.LineChart>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="8"
+            android:orientation="horizontal">
 
             <TextView
-                android:id="@+id/textview"
-                android:layout_width="wrap_content"
+                android:id="@+id/nameSensor"
+                android:layout_width="210dp"
+                android:layout_height="match_parent"
+                android:gravity="right" />
+
+            <Spinner
+                android:id="@+id/spinnerNameSensor"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="20dp" />
-        </com.github.mikephil.charting.charts.LineChart>
+                android:spinnerMode="dropdown" />
+        </LinearLayout>
 
 
     </LinearLayout>
@@ -40,19 +56,22 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="5"
-        >
+        android:layout_weight="6">
 
         <ImageButton
-            android:id="@+id/addDevice"
-            android:layout_width="38dp"
-            android:layout_height="36dp"
-            android:layout_marginStart="336dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/add"
+            android:id="@+id/menuBtn"
+            android:layout_width="50dp"
+            android:layout_height="47dp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="1dp"
+            android:layout_marginBottom="1dp"
+            android:background="@drawable/menu"
+            android:scaleType="centerInside"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:srcCompat="@null" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.recyclerview.widget.RecyclerView
@@ -61,8 +80,8 @@
         android:layout_height="0dp"
         android:layout_gravity="center_vertical"
         android:layout_marginLeft="10dp"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="5dp"
         android:layout_marginRight="10dp"
-        android:layout_weight="60" />
+        android:layout_weight="59" />
 
 </LinearLayout>

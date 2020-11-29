@@ -2,18 +2,25 @@ package thanhnv.tele.samiot;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.SharedPreferences;
 
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.ImageButton;
+import android.widget.PopupMenu;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.LineChart;
@@ -24,19 +31,16 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.interfaces.datasets.ILineDataSet;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -44,105 +48,252 @@ import java.util.Map;
 import java.util.TreeMap;
 
 public class MainActivity extends Activity {
-    ImageButton addDevices;
-    TextView textView;
-
+    private Spinner ListSensor;
+    private ImageButton menuBtn;
+    TextView nameSensor;
     /////Firebase
+    private FirebaseAuth auth;
     DatabaseReference mData;
-    DatabaseReference roomData;
-    ArrayList<String> roomNameSave=new ArrayList<>();
-    Map<String,Long> deviceSum= new HashMap<String, Long>();
+    ArrayList<Devices> dataFromFirebase= new ArrayList<Devices>();
+
+    ArrayList<Devices> ArrValueSensor = new ArrayList<Devices>();
+    ArrayList<String> StrSensorName = new ArrayList<String>();
+    ArrayList<String> StrRoomName=new ArrayList<>();
+    Map<String,Long> deviceCount= new HashMap<String, Long>();
+    ArrayAdapter arrayAdapter;
+
     RecyclerView recyclerView;
     DeviceAdapter deviceAdapter;
-    ArrayList<Devices> devicesFirebase0= new ArrayList<Devices>();
-    ArrayList<Devices> devicesFirebase1= new ArrayList<Devices>();
-    ArrayList<Devices> devicesRecyclerView= new ArrayList<Devices>();
+    ArrayList<Object> dataRecyclerView= new ArrayList<Object>();
     GridLayoutManager manager =new GridLayoutManager(this, 2);
     Gson gson;
-
     ///Line Chart
     LineChart mChart;
     LineData lineData;
-    SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm / dd-MM-yy     "); // the format of your date
-
-    ArrayList<Entry> Temp1 = new ArrayList<>();
-    ArrayList<Entry> Humi1 = new ArrayList<>();
-    ArrayList<String> time1= new ArrayList<String>();
+    SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm / dd-MM-yy     "); // the format of date
+    ArrayList<Entry> sensorValues = new ArrayList<>();
+    ArrayList<String> timeValue= new ArrayList<String>();
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        textView=(TextView)findViewById(R.id.textview);
-        addDevices=(ImageButton) findViewById(R.id.addDevice);
+        menuBtn=(ImageButton) findViewById(R.id.menuBtn);
 
         ///Firebase
         mData = FirebaseDatabase.getInstance().getReference();
-        roomData = FirebaseDatabase.getInstance().getReference("User1");
 
         /////RecyclerView
-        getRoomNameFromFirebase();
-        getRoomNameFromStorage();
         initView();
-        showView();
+        getDataFromStorage();
 
-        ///Temp_Humidity_Chart
+        ///Temp_Humidity_Chart;
+        nameSensor = (TextView) findViewById(R.id.nameSensor);
+        ListSensor = (Spinner) findViewById(R.id.spinnerNameSensor);
         initChart();
-        getDataChart();
-        showChart();
 
-        ///Button add devices
-        addDevices.setOnClickListener(new View.OnClickListener() {
+        ///Menu Button
+        menuBtn.setOnClickListener(new View.OnClickListener() {
             @RequiresApi(api = Build.VERSION_CODES.O)
             @Override
             public void onClick(View view) {
-                ////Add Devices
+                ShowMenu();
             }
         });
-        ////Item click
+        ///Event Value Changed
+        EventValue();
+        ////Item click On/Off or Dimmer
         deviceAdapter.setOnButtonClick(new DeviceAdapter.OnButtonClick() {
+            //// On/Off Button
             @Override
             public void onButtonClick(int value, int position, int listSize) {
-                int indexDevice=0;
-                for(String room : roomNameSave){
-                    if(indexDevice+deviceSum.get(room)>position){
-                        String pathRoom="Room"+ (roomNameSave.indexOf(room)+1);
-                        String pathDevice="Device"+(position-indexDevice+1);
-                        mData.child("User1").child(pathRoom).child("Devices")
-                                .child(pathDevice).child("value/value").setValue(devicesRecyclerView.get(position).value.values()
-                                .toArray()[devicesRecyclerView.get(position).value.values().toArray().length-1]);
+                long indexStartOfRoom = 0,
+                    numDevices = 0;
+                Devices devices = (Devices) dataRecyclerView.get(position);
+                for(String room : StrRoomName){
+                    numDevices = deviceCount.get(room);
+                    indexStartOfRoom = dataRecyclerView.indexOf(room);
+                    if(position <= indexStartOfRoom + numDevices){
+                        int indexOfLastValue=devices.value.values().toArray().length-1;
+                        mData.child("User1").child("Home1").child(devices.uId).child("value/value")
+                                .setValue(devices.value.values().toArray()[indexOfLastValue]);
                         break;
-                    }
-                    else {
-                        indexDevice+=deviceSum.get(room);
                     }
                 }
             }
-
+            //// Dimmer SeekBar
             @Override
             public void onSeekBarChange(int value, int position, int listSize) {
-                int indexDevice=0;
-                for(String room : roomNameSave){
-                    if(indexDevice+deviceSum.get(room)>position){
-                       String pathRoom="Room"+ (roomNameSave.indexOf(room)+1);
-                       String pathDevice="Device"+(position-indexDevice+1);
-                        mData.child("User1").child(pathRoom).child("Devices")
-                                .child(pathDevice).child("value/value").setValue(devicesRecyclerView.get(position).value.values()
-                                .toArray()[devicesRecyclerView.get(position).value.values().toArray().length-1]);
+                long indexStartOfRoom = 0,
+                        numDevices = 0;
+                Devices devices = (Devices) dataRecyclerView.get(position);
+                for(String room : StrRoomName){
+                    numDevices = deviceCount.get(room);
+                    indexStartOfRoom = dataRecyclerView.indexOf(room);
+                    if(position <= indexStartOfRoom + numDevices){
+                        int indexOfLastValue=devices.value.values().toArray().length-1;
+                        mData.child("User1").child("Home1").child(devices.uId).child("value/value")
+                                .setValue(devices.value.values().toArray()[indexOfLastValue]);
                         break;
-                    }
-                    else {
-                        indexDevice+=deviceSum.get(room);
                     }
                 }
             }
         });
     }
+    private void ShowMenu(){
+        PopupMenu popupMenu = new PopupMenu(this,menuBtn);
+        popupMenu.getMenuInflater().inflate(R.menu.mainmenu,popupMenu.getMenu());
+        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem menuItem) {
+                switch (menuItem.getItemId()){
+                    case R.id.aboutAppMenu : {
+                        break;
+                    }
+                    case R.id.logOutMenu :{
+                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
+                        alertDialog.setTitle("Are you sure?");
+                        alertDialog.setIcon(R.mipmap.ic_launcher);
+                        alertDialog.setMessage("Are you sure you want to log out?");
+                        alertDialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                auth.getInstance().signOut();
+                                startActivity(new Intent(MainActivity.this, LoginActivity.class));
+                                finish();
+                            }
+                        });
+                        alertDialog.setNegativeButton("No", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+
+                            }
+                        });
+                        AlertDialog alertDialog1 = alertDialog.create();
+                        alertDialog1.show();
+                        break;
+                    }
+                    case R.id.exitMenu :{
+                        AlertDialog.Builder alertDialog = new AlertDialog.Builder(MainActivity.this);
+                        alertDialog.setTitle("Are you sure?");
+                        alertDialog.setIcon(R.mipmap.ic_launcher);
+                        alertDialog.setMessage("Are you sure you want to close this app?");
+                        alertDialog.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                                finish();
+                            }
+                        });
+                        alertDialog.setNegativeButton("No", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialogInterface, int i) {
+                            }
+                        });
+                        AlertDialog alertDialog1 = alertDialog.create();
+                        alertDialog1.show();
+                        break;
+                    }
+                }
+                return false;
+            }
+        });
+        popupMenu.show();
+    }
+    public void EventValue(){
+        mData.child("User1").child("Home1").addChildEventListener(new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                ProcessEvent(snapshot);
+            }
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+                ProcessEvent(snapshot);
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                Devices devices = snapshot.getValue(Devices.class);
+                String nameRoom = devices.room;
+                int indexStartRoom = dataRecyclerView.indexOf(nameRoom);
+                int indexOfDevice = CheckUid(devices);
+                long numDevcie = deviceCount.get(nameRoom);
+
+                deviceCount.put(nameRoom, numDevcie-1);
+                dataRecyclerView.remove(indexOfDevice);
+                if(numDevcie-1 <= 0) {
+                    dataRecyclerView.remove(nameRoom);
+                    StrRoomName.remove(nameRoom);
+                    deviceCount.remove(nameRoom);
+                }
+                deviceAdapter.notifyDataSetChanged();
+                if (devices.deviceType.equals("TemperatureSensor") || devices.deviceType.equals("HumiditySensor")){
+                    updateChart(devices,"Remove");
+                }
+            }
+
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, @Nullable String previousChildName) {
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+    }
+    public void ProcessEvent(DataSnapshot snapshot){
+        Devices devices = snapshot.getValue(Devices.class);
+        String nameRoom = devices.room;
+        int indexStartRoom = dataRecyclerView.indexOf(nameRoom);
+        int indexOfDevice = CheckUid(devices);
+
+        if(indexStartRoom == -1){  /// New Room
+            deviceCount.put(nameRoom, (long) 1);
+            StrRoomName.add(nameRoom);
+            dataRecyclerView.add(nameRoom);
+            dataRecyclerView.add(devices);
+            dataFromFirebase.clear();
+            dataFromFirebase.add(devices);
+            saveData(dataFromFirebase,nameRoom);
+        }
+        else{
+            if(indexOfDevice == -1) { /// Id Device chua ton tai
+                long numDevcie = deviceCount.get(nameRoom);
+                deviceCount.put(nameRoom, numDevcie + 1);
+                dataRecyclerView.add((int) (indexStartRoom + numDevcie + 1), devices);
+            }
+            else{ //// Id Device da ton tai
+                dataRecyclerView.set(indexOfDevice,devices);
+            }
+            dataFromFirebase.clear();
+            for(int i=indexStartRoom+1; i<=indexStartRoom+deviceCount.get(nameRoom); i++) {
+                dataFromFirebase.add((Devices) dataRecyclerView.get(i));
+            }
+            saveData(dataFromFirebase,nameRoom);
+        }
+        deviceAdapter.notifyDataSetChanged();
+        if (devices.deviceType.equals("TemperatureSensor") || devices.deviceType.equals("HumiditySensor")){
+            if(StrSensorName.size()==0){
+                StrSensorName.add(devices.name);
+                initChart();
+            }
+            updateChart(devices,"Changed");
+        }
+    }
+    public int CheckUid(Devices dv1){
+        for(Object dvx : dataRecyclerView) {
+            if(dvx instanceof Devices) {
+                Devices dv2 = (Devices) dvx;
+                if (dv1.uId.equals(dv2.uId)) return dataRecyclerView.indexOf(dv2);
+            }
+        }
+        return -1;
+    }
     public void initChart(){
         mChart =(LineChart) findViewById(R.id.chart);
         mChart.setDrawGridBackground(false);
-        mChart.setDescription("Bed Room");
         mChart.setTouchEnabled(true);
         mChart.setDragEnabled(true);
         mChart.setScaleEnabled(true);
@@ -160,271 +311,141 @@ public class MainActivity extends Activity {
 
         Legend legend = mChart.getLegend();
         legend.setForm(Legend.LegendForm.SQUARE);
-    }
-    @RequiresApi(api = Build.VERSION_CODES.O)
-    public void getDataChart(){
-        if(getData("BedRoom").size()!=0) {
-            Map< String, Float > data = getData("BedRoom").get(1).value;
-            TreeMap<String, Float> dataChart = new TreeMap<>(data);
-            int index = 0;
-            Humi1.clear();
-            time1.clear();
-            for (String key : dataChart.keySet()) {
-                Date date = new Date(Long.parseLong(key)*1000L);
-                String formattedDtm = dateFormat.format(date);
 
-                time1.add(formattedDtm);
-                Humi1.add(new Entry(dataChart.get(key), index));
+        arrayAdapter = new ArrayAdapter(this,android.R.layout.simple_spinner_item, StrSensorName);
+        arrayAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        ListSensor.setAdapter(arrayAdapter);
+        ListSensor.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView< ? > adapterView, View view, int i, long l) {
+                setDataChart(ArrValueSensor.get(i));
+                showChart(ArrValueSensor.get(i).deviceType);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView< ? > adapterView) {
+
+            }
+        });
+    }
+    public void setDataChart(Devices sensor){
+            Map< String, Float > data = sensor.value;
+            TreeMap< String, Float > dataChart = new TreeMap<>(data);
+            int index = 0;
+            sensorValues.clear();
+            timeValue.clear();
+            for (String key : dataChart.keySet()) {
+                Date date = new Date(Long.parseLong(key) * 1000L);
+                String formattedDtm = dateFormat.format(date);
+                timeValue.add(formattedDtm);
+                sensorValues.add(new Entry(dataChart.get(key), index));
                 index++;
             }
-            if (getData("BedRoom").size() > 2) {
-                data = getData("BedRoom").get(2).value;
-                dataChart = new TreeMap<>(data);
-                index = 0;
-                Temp1.clear();
-                for (String key : dataChart.keySet()) {
-                    Temp1.add(new Entry(dataChart.get(key), index));
-                    index++;
-                }
-            }
-        }
     }
-    public void showChart(){
+    public void showChart(String TypeDevice){
             ArrayList< ILineDataSet > dataSets = new ArrayList<>();
-            LineDataSet set1 = new LineDataSet(Temp1, "Temperature");
+            LineDataSet set1 = new LineDataSet(sensorValues, TypeDevice);
             set1.enableDashedLine(10f, 0f, 0f);
             set1.enableDashedHighlightLine(10f, 0f, 0f);
-            set1.setColor(Color.RED);
-            set1.setCircleColor(Color.RED);
+            if(TypeDevice.equals("HumiditySensor")){
+                set1.setColor(Color.BLUE);
+                set1.setCircleColor(Color.BLUE);
+                set1.setFillColor(Color.BLUE);
+            }
+            else {
+                set1.setColor(Color.RED);
+                set1.setCircleColor(Color.RED);
+                set1.setFillColor(Color.RED);
+            }
             set1.setLineWidth(2f);
             set1.setCircleRadius(3f);
             set1.setDrawCircleHole(false);
             set1.setValueTextSize(9f);
             set1.setDrawFilled(true);
-            set1.setFillColor(Color.RED);
-
-
-            LineDataSet set2 = new LineDataSet(Humi1, "Humidity");
-            set2.enableDashedLine(10f, 0f, 0f);
-            set2.enableDashedHighlightLine(10f, 0f, 0f);
-            set2.setColor(Color.BLUE);
-            set2.setCircleColor(Color.BLUE);
-            set2.setLineWidth(2f);
-            set2.setCircleRadius(3f);
-            set2.setDrawCircleHole(false);
-            set2.setValueTextSize(9f);
-            set2.setDrawFilled(true);
-
+            mChart.setDescription("Sensor Monitor");
             dataSets.add(set1);
-            dataSets.add(set2);
-            lineData = new LineData(time1, dataSets);
-
-            mChart.animateX(2000);
+            lineData = new LineData(timeValue, dataSets);
+            mChart.animateX(400);
             mChart.setData(lineData);
             mChart.invalidate();
+    }
+    public void updateChart(Devices device, String action){
+        String currentSensor = ListSensor.getSelectedItem().toString();
+        int Index = -1;
+        for(Devices dv : ArrValueSensor){
+            if(device.uId.equals(dv.uId)){
+                Index=ArrValueSensor.indexOf(dv);
+                break;
+            }
+        }
+        if (Index != -1) {//// Value Sensor Changed
+            if(action.equals("Remove")){
+                ArrValueSensor.remove(device);
+                StrSensorName.remove(device.name);
+            }
+            else ArrValueSensor.set(Index, device);
+        } else {///New Sensor
+            ArrValueSensor.add(device);
+            StrSensorName.add(device.name);
+        }
+        if(device.name.equals(currentSensor)) {
+            setDataChart(device);
+            if(lineData!=null) lineData.notifyDataChanged();
+            mChart.notifyDataSetChanged();
+            mChart.invalidate();
+        }
     }
     public void initView(){
         recyclerView =(RecyclerView) findViewById(R.id.recyclerView);
         recyclerView.setHasFixedSize(true);
         recyclerView.setLayoutManager(manager);
         manager.setSmoothScrollbarEnabled(true);
-    }
-    public  void showView(){
-        devicesRecyclerView.clear();
-        for (String room: roomNameSave) {
-            ArrayList< Devices > data= new ArrayList< Devices >();
-            data=getData(room);
-            devicesRecyclerView.addAll(data);
-        }
-        deviceAdapter = new DeviceAdapter(devicesRecyclerView);
+        manager.setSpanSizeLookup(new GridLayoutManager.SpanSizeLookup() {
+            @Override
+            public int getSpanSize(int position) {
+                if (dataRecyclerView.get(position) instanceof String)
+                    return 2;  //// item size = 2
+                else return 1; //// item size =  1
+            }
+        });
+        deviceAdapter = new DeviceAdapter(dataRecyclerView);
         recyclerView.setAdapter(deviceAdapter);
     }
-    public void getRoomNameFromFirebase(){
-        roomData.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                roomNameSave.clear();
-                for (DataSnapshot ds : dataSnapshot.getChildren()) {
-                    Map<String, String> deviceData = (Map<String, String>) ds.getValue();
-                    int i=0;
-                    long size = 0;
-                    String nameRoom =deviceData.get("name");
-                    for(DataSnapshot datas : ds.getChildren()){
-                        if(i==0) size = datas.getChildrenCount();
-                        i++;
+    public void getDataFromStorage(){
+        SharedPreferences pre = getSharedPreferences("IoTData", MODE_PRIVATE);
+        Map<String,?> keys = pre.getAll();
+        dataRecyclerView.clear();
+        StrRoomName.clear();
+        ArrValueSensor.clear();
+        StrSensorName.clear();
+
+        for(Map.Entry<String,?> entry : keys.entrySet()){
+            String nameRoom = entry.getKey();
+            long sizeOfRoom = getData(nameRoom).size();
+
+            StrRoomName.add(nameRoom);
+            dataRecyclerView.add(nameRoom);
+            dataRecyclerView.addAll(getData(nameRoom));
+            deviceCount.put(nameRoom,sizeOfRoom);
+            if(getData(entry.getKey()).size() == 0) {
+                deviceCount.remove(nameRoom);
+                StrRoomName.remove(nameRoom);
+                dataRecyclerView.remove(nameRoom);
+            }
+            if (getData(nameRoom).size() != 0) {
+                for (Devices dv : getData(nameRoom)) {
+                    if (dv.deviceType.equals("TemperatureSensor") || dv.deviceType.equals("HumiditySensor")) {
+                        ArrValueSensor.add(dv);
+                        StrSensorName.add(dv.name);
                     }
-                    deviceSum.put(nameRoom,size);
-                    //roomNameSave.add(nameRoom);
-                    saveData(devicesFirebase0,nameRoom);
-                    saveData(devicesFirebase1,nameRoom);
-                    devicesRecyclerView.clear();
-                    EventValueChanged(ds.getKey(),nameRoom);
                 }
             }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-
-            }
-        });
-    }
-    public void getRoomNameFromStorage(){
-        roomNameSave.clear();
-        SharedPreferences pre=getSharedPreferences("IoTData", MODE_PRIVATE);
-        Map<String,?> keys = pre.getAll();
-        for(Map.Entry<String,?> entry : keys.entrySet()){
-            roomNameSave.add(entry.getKey());
+            deviceAdapter.notifyDataSetChanged();
         }
     }
-    public void EventValueChanged(final String roomKey, final String roomName){
-
-        mData.child("User1").child(roomKey).child("Devices").addChildEventListener(new ChildEventListener() {
-            @Override
-            public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-                Devices devices = dataSnapshot.getValue(Devices.class);
-                String[] str = dataSnapshot.getKey().split("ce");///"Devi-ce-3
-                int index = Integer.parseInt(str[1]) - 1;
-                getRoomNameFromStorage();
-                switch (roomNameSave.indexOf(roomName)){
-                    case 0: {
-                        if(devicesFirebase0.size()>index) {
-                            devicesFirebase0.add(index, devices);
-                        }
-                        else devicesFirebase0.add(devices);
-                        saveData(devicesFirebase0,roomName);
-                        if(index==1 || index==2){
-                            getDataChart();
-                            lineData.notifyDataChanged();
-                            mChart.notifyDataSetChanged();
-                            mChart.invalidate();
-                        }
-                        break;
-                    }
-                    case 1: {
-                        if(devicesFirebase1.size()>index) {
-                            devicesFirebase1.add(index, devices);
-                        }
-                        else devicesFirebase1.add(devices);
-                        saveData(devicesFirebase1,roomName);
-                        break;
-                    }
-                }
-                long sumDevice=0;
-                int Index=0;
-                for(String room : roomNameSave){
-                    if(room.equals(roomName)){
-                        Index = (int) (sumDevice+index);
-                        if(devicesRecyclerView.size()>Index){
-                            devicesRecyclerView.add(Index,devices);
-                        }
-                        else {
-                            devicesRecyclerView.add(devices);
-                        }
-                        break;
-                    }
-                    recyclerView.setAdapter(deviceAdapter);
-                    sumDevice+=deviceSum.get(room);
-                }
-            }
-
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-                Devices devices = dataSnapshot.getValue(Devices.class);
-                String[] str = dataSnapshot.getKey().split("ce");///"Devi-ce-3
-                int index = Integer.parseInt(str[1]) - 1;
-                getRoomNameFromStorage();
-                switch (roomNameSave.indexOf(roomName)){
-                    case 0: {
-                        if(devicesFirebase0.size()>index) {
-                            devicesFirebase0.remove(index);
-                            devicesFirebase0.add(index, devices);
-                        }
-                        else devicesFirebase0.add(devices);
-                        saveData(devicesFirebase0,roomName);
-                        if(index==1 || index==2){
-                            getDataChart();
-                            lineData.notifyDataChanged();
-                            mChart.notifyDataSetChanged();
-                            mChart.invalidate();
-                        }
-                        break;
-                    }
-                    case 1: {
-                        if(devicesFirebase1.size()>index) {
-                            devicesFirebase1.remove(index);
-                            devicesFirebase1.add(index, devices);
-                        }
-                        else devicesFirebase1.add(devices);
-                        saveData(devicesFirebase1,roomName);
-                        break;
-                    }
-                }
-
-                long sumDevice=0;
-                for(String room : roomNameSave){
-                    if(room.equals(roomName)){
-                        int Index = (int) (sumDevice+index);
-                        if(devicesRecyclerView.size()>Index){
-                            devicesRecyclerView.remove(Index);
-                            devicesRecyclerView.add(Index,devices);
-                        }
-                        else {
-                            devicesRecyclerView.add(devices);
-                        }
-                        deviceAdapter.notifyItemChanged(Index,devices);
-                        break;
-                    }
-                    sumDevice+=deviceSum.get(room);
-                }
-            }
-
-            @Override
-            public void onChildRemoved(@NonNull DataSnapshot dataSnapshot) {
-                Devices devices = dataSnapshot.getValue(Devices.class);
-                String[] str = dataSnapshot.getKey().split("ce");///"Devi-ce-3
-                int index = Integer.parseInt(str[1]) - 1;
-
-                getRoomNameFromStorage();
-                switch (roomNameSave.indexOf(roomName)){
-                    case 0: {
-                        devicesFirebase0.remove(index);
-                        saveData(devicesFirebase0,roomName);
-                        break;
-                    }
-                    case 1: {
-                        devicesFirebase1.remove(index);
-                        saveData(devicesFirebase1,roomName);
-                        break;
-                    }
-                }
-
-                long sumDevice=0;
-                for(String room : roomNameSave){
-                    if(room.equals(roomName)){
-                        int Index = (int) (sumDevice+index);
-                        devicesRecyclerView.remove(Index);
-                        break;
-                    }
-                    sumDevice+=deviceSum.get(room);
-                }
-                recyclerView.setAdapter(deviceAdapter);
-            }
-
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
-
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-
-            }
-        });
-    }
-    public ArrayList<Devices> getData(String nameRoom){
+    public ArrayList<Devices> getData(String roomName){
         SharedPreferences pre=getSharedPreferences("IoTData", MODE_PRIVATE);
-        String response = pre.getString(nameRoom,"");
-
+        String response = pre.getString(roomName,"");
         if(response!="") {
             Gson gson = new Gson();
             return gson.fromJson(response, new TypeToken< ArrayList<Devices> >() {}.getType());
@@ -434,12 +455,9 @@ public class MainActivity extends Activity {
     public void saveData(ArrayList<Devices> device, String nameRoom){
         gson = new Gson();
         String jsonDevices = gson.toJson(device);
-
         SharedPreferences pre=getSharedPreferences("IoTData", MODE_PRIVATE);
         SharedPreferences.Editor editor=pre.edit();
         editor.putString(nameRoom,jsonDevices);
         editor.apply();
     }
 }
-
-
