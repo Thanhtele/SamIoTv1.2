@@ -279,7 +279,7 @@ public class MainActivity extends Activity {
                 StrSensorName.add(devices.name);
                 initChart();
             }
-            updateChart(devices,"Changed");
+            updateChart(devices,"Change");
         }
     }
     public int CheckUid(Devices dv1){
