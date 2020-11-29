@@ -1,16 +1,16 @@
-#include <dht_nonblocking.h>
 #include <RF24Network.h>
 #include <RF24.h>
 #include <SPI.h>
 #include <EEPROM.h>
 
-#define ceilingLight 4
-#define ceilingFan 5
-#define btLight 7
-
-#define DHT_SENSOR_TYPE DHT_TYPE_11
-static const int DHT_SENSOR_PIN = 6;
-DHT_nonblocking dht_sensor( DHT_SENSOR_PIN, DHT_SENSOR_TYPE );
+#define device1 4
+#define device2 8
+#define device3 5
+#define bt1 2
+#define bt2 7
+#define bt3 3
+#define buzzer 6
+/////4-pwm, 5,8 on-off
 
 RF24 radio(9, 10);               // nRF24L01 (CE,CSN)
 RF24Network network(radio);      // Include the radio in the network
@@ -19,40 +19,30 @@ const uint16_t master = 00;    // Address of the other node in Octal format
 uint16_t rfData[6]={};
 int flagInterrupt=0;
 
-static bool measure_environment( float *temperature, float *humidity )
-{
-  static unsigned long measurement_timestamp = millis( );
-  if( millis( ) - measurement_timestamp > 60000ul )
-  {
-    if( dht_sensor.measure( temperature, humidity ) == true )
-    {
-      measurement_timestamp = millis( );
-      return( true );
-    }
-  }
-  return( false );
-}
-void controllCeilingLight(){
-      flagInterrupt=1;
-      if(!digitalRead(btLight)){
-         Serial.println("Bt 3rd is Click");
+void controllDevice12(){
+      if(digitalRead(bt2)==0){
+        Serial.println("Bt 2nd is Click");
+        if(rfData[2]) rfData[2]=0; 
+        else rfData[2]=1;
+        digitalWrite(device2,rfData[2]);
       }
       else{
         Serial.println("Bt 1st is Click");
-        if(rfData[4]) rfData[4]=0; 
-        else rfData[4]=1;
-        digitalWrite(ceilingLight,rfData[4]);
+        if(rfData[1]) rfData[1]=0; 
+        else rfData[1]=1;
+        digitalWrite(device1,rfData[1]);
       }
+      tone(buzzer, 3700, 40);
+      flagInterrupt=1;
 }
-void speedCeilingFan(){
-  flagInterrupt=1;
-  delay(30);
-  Serial.println("Bt 2nd is Click");
+void controllDevice3(){
   if(!digitalRead(3)){
-      rfData[1]+=20;
-      if(rfData[1]>100) rfData[1]=0;
-      analogWrite(ceilingFan,rfData[1]*255/100); 
-  }
+      tone(buzzer, 3700, 40);
+      rfData[3]+=20;
+      if(rfData[3]>100) rfData[3]=0;
+      analogWrite(device3,rfData[3]*255/100);
+  } 
+  flagInterrupt=1;
 }
 void setup() {
   Serial.begin(115200);
@@ -61,17 +51,23 @@ void setup() {
   network.begin(90, this_node); //(channel, node address)
   radio.setDataRate(RF24_1MBPS);
   
-  pinMode(ceilingLight, OUTPUT);
-  pinMode(ceilingFan, OUTPUT);
-  pinMode(2, INPUT_PULLUP); // sử dụng điện trở kéo lên cho chân số 13
-  attachInterrupt(0,controllCeilingLight,FALLING);
-  pinMode(3, INPUT_PULLUP); // sử dụng điện trở kéo lên cho chân
-  attachInterrupt(1,speedCeilingFan,FALLING);
-  pinMode(btLight, INPUT_PULLUP); // sử dụng điện trở kéo lên cho chân
+  pinMode(device1, OUTPUT);
+  pinMode(device2, OUTPUT);
+  pinMode(device3, OUTPUT);  
+  pinMode(buzzer, OUTPUT);
+  pinMode(bt1, INPUT_PULLUP);
+  attachInterrupt(0,controllDevice12,FALLING);
+  pinMode(bt2,INPUT_PULLUP);
+  pinMode(bt3, INPUT_PULLUP);
+  attachInterrupt(1,controllDevice3,FALLING);
+  
   /////Starting
-  analogWrite(ceilingFan,EEPROM.read(1)*255/100); 
-  digitalWrite(ceilingLight,EEPROM.read(4));
+  digitalWrite(device1,EEPROM.read(1));
+  digitalWrite(device2,EEPROM.read(2));
+  analogWrite(device3,EEPROM.read(3)*255/100); 
+  
   Serial.println("Starting...");
+  rfData[0]=3;
   reponseHub();
   flagInterrupt=0;
 }
@@ -79,50 +75,46 @@ void setup() {
 void loop() {
       network.update();
       //===== Receiving =====//
-      int oke=0;
-      float temperature;
-      float humidity;
-      if( measure_environment( &temperature, &humidity ) == true ){
-          EEPROM.write(2,humidity);
-          EEPROM.write(3,temperature);  
-      }
       if(flagInterrupt){
           for(int i=1;i<6;i++){
-                  if(i!=2 || i!=3) EEPROM.write(i,rfData[i]);
+              if(i==1 || i==2 || i==3) EEPROM.write(i,rfData[i]);
           }
-          flagInterrupt=0;
-          Serial.println("On Switch Change");
+          rfData[0]=3;
           reponseHub();
+          flagInterrupt=0;
       }
-      while ( network.available() ) {     // Is there any incoming data? 
+      while(network.available()) {     // Is there any incoming data? 
             RF24NetworkHeader header;
             network.read(header, &rfData, sizeof(rfData)); // Read the data Received 
-            if(rfData[0]==0){         /// saveData, No Reponse
-                analogWrite(ceilingFan,rfData[1]*255/100); 
-                digitalWrite(ceilingLight,rfData[4]);
+           
+            if(rfData[0]==0) {
+              Serial.println("Hub is pinging ");
+              break;
+            }
+            if(rfData[0]==1){         // saveData, No Reponse
+                digitalWrite(device1,rfData[1]);
+                digitalWrite(device2,rfData[2]);
+                analogWrite(device3,rfData[3]*255/100); 
                 for(int i=1;i<6;i++){         
-                   if(i!=2 || i!=3) EEPROM.write(i,rfData[i]);         //// Save data
+                   if(i==1 || i==2 || i==3) EEPROM.write(i,rfData[i]);
                 }
-                Serial.println(" Hub controlling Devices ");
+                Serial.println("Hub controlling Devices ");
             }
-            else if(rfData[0]==1) {                   ///No saveData, Sent Reponse
-                Serial.println(" Hub request Status Devices ");        
-                delay(20);
-                reponseHub();
+            if(rfData[0]==3) {
+              reponseHub();
+              Serial.println("Hub request Status Devices ");        
             }
-            else Serial.println("HUB is pinging");    ///No saveData, No Reponse 
+            
     }    
 }
-    
-/////Reponse status to Hub
+//Reponse status to Hub
 void reponseHub(){
-        Serial.println("Sending status Devices to Hub");
-        for(int i=1;i<6;i++){
-             rfData[i]= EEPROM.read(i);
-             Serial.print(rfData[i]);
-             Serial.print(" ");
+        if(rfData[0]==3){
+            Serial.println("Sending status Devices to Hub");
+            for(int i=1;i<6;i++){
+                 rfData[i] = EEPROM.read(i);
+            }
         }
         RF24NetworkHeader header00(master);             // (Address where the data is going)
-        bool ok = network.write(header00, &rfData, sizeof(rfData)); // Send the data         
-        Serial.println("\n-----------------------------------------");
+        bool ok = network.write(header00, &rfData, sizeof(rfData)); // Send the data   
 }
