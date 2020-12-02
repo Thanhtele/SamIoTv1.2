@@ -2,6 +2,8 @@ package thanhnv.tele.samiot;
 
 import java.util.Map;
 
+import static thanhnv.tele.samiot.R.drawable.ac_off;
+import static thanhnv.tele.samiot.R.drawable.ac_on;
 import static thanhnv.tele.samiot.R.drawable.fan_off;
 import static thanhnv.tele.samiot.R.drawable.fan_on;
 import static thanhnv.tele.samiot.R.drawable.gassensor;
@@ -69,6 +71,10 @@ public class Devices{
                 this.deviceOn=humiditysensor;
                 this.deviceOff=humiditysensor;
                 break;
+            }
+            case "AirConditioner":{
+                this.deviceOn=ac_on;
+                this.deviceOff=ac_off;
             }
         }
     }

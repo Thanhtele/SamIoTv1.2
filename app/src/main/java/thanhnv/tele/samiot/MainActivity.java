@@ -2,9 +2,11 @@ package thanhnv.tele.samiot;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.app.ActionBar;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -47,7 +49,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class MainActivity extends Activity {
+public class MainActivity extends AppCompatActivity {
     private Spinner ListSensor;
     private ImageButton menuBtn;
     TextView nameSensor;
@@ -74,16 +76,15 @@ public class MainActivity extends Activity {
     ArrayList<Entry> sensorValues = new ArrayList<>();
     ArrayList<String> timeValue= new ArrayList<String>();
 
+
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         menuBtn=(ImageButton) findViewById(R.id.menuBtn);
-
         ///Firebase
         mData = FirebaseDatabase.getInstance().getReference();
-
         /////RecyclerView
         initView();
         getDataFromStorage();
@@ -115,6 +116,11 @@ public class MainActivity extends Activity {
                     numDevices = deviceCount.get(room);
                     indexStartOfRoom = dataRecyclerView.indexOf(room);
                     if(position <= indexStartOfRoom + numDevices){
+                        if(devices.controlType.equals("IrRemote")){
+                            mData.child("User1").child("Home1").child(devices.uId).child("value/value")
+                                    .setValue(devices.value.get("value"));
+                            break;
+                        }
                         int indexOfLastValue=devices.value.values().toArray().length-1;
                         mData.child("User1").child("Home1").child(devices.uId).child("value/value")
                                 .setValue(devices.value.values().toArray()[indexOfLastValue]);
@@ -138,6 +144,14 @@ public class MainActivity extends Activity {
                         break;
                     }
                 }
+            }
+            ////
+
+            @Override
+            public void onitemClick(int position) {
+                Intent intent = new Intent(MainActivity.this,IrRemote.class);
+                intent.putExtra("Position",position);
+                startActivity(intent);
             }
         });
     }

@@ -1,5 +1,6 @@
 package thanhnv.tele.samiot;
 
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,6 +11,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
@@ -41,6 +43,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
     public interface OnButtonClick {
         void onButtonClick(int value, int position, int listSize);
         void onSeekBarChange(int value, int position,int listSize);
+        void onitemClick(int position);
     }
     private OnButtonClick listener;
     public void setOnButtonClick(OnButtonClick listener){
@@ -77,9 +80,17 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             case Device: {
                 final DeviceHolder holder = (DeviceHolder) holderBind;
                 devices = (Devices) devicesList.get(position);
+                if(devices.controlType.equals("IrRemote") && devices.value.get("deviceValue")==null) devices.value.put("deviceValue", (float) 23);
                     holder.deviceName.setText(devices.getName());
                     switch (devices.getControlType()) {
                         case "On-Off": {
+                            holder.btPower.setVisibility(View.VISIBLE);
+                            holder.drawValue.setVisibility(View.INVISIBLE);
+                            holder.sensorValue.setText("");
+                            holder.irValue.setText("");
+                            break;
+                        }
+                        case "IrRemote":{
                             holder.btPower.setVisibility(View.VISIBLE);
                             holder.drawValue.setVisibility(View.INVISIBLE);
                             holder.sensorValue.setText("");
@@ -89,11 +100,13 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                             holder.btPower.setVisibility(View.INVISIBLE);
                             holder.drawValue.setVisibility(View.VISIBLE);
                             holder.sensorValue.setText("");
+                            holder.irValue.setText("");
                             break;
                         }
                         case "NonControl": {
                             holder.btPower.setVisibility(View.INVISIBLE);
                             holder.drawValue.setVisibility(View.INVISIBLE);
+                            holder.irValue.setText("");
                             break;
                         }
                     }
@@ -107,11 +120,6 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                             switch (devices.getControlType()) {
                                 case "NonControl": {
                                     switch (devices.deviceType) {
-                                        case "GasSensor": {
-                                            holder.sensorValue.setText("Danger!");
-                                            holder.backgroundLayout.setBackgroundResource(redbackground);
-                                            break;
-                                        }
                                         case "TemperatureSensor": {
                                             holder.sensorValue.setText(getValue(devices) + "°C");
                                             break;
@@ -135,6 +143,12 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                                     holder.btPower.setBackgroundResource(power_on);
                                     break;
                                 }
+                                case "IrRemote":{
+                                    holder.btPower.setBackgroundResource(power_on);
+                                    holder.onOffStatus.setText("On");
+                                    holder.irValue.setText(devices.value.get("deviceValue").intValue()+"°C");
+                                    break;
+                                }
                             }
                         }
                         else {
@@ -143,11 +157,6 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                                 case "NonControl": {
                                     holder.onOffStatus.setText("Online");
                                     switch (devices.deviceType) {
-                                        case "GasSensor": {
-                                            holder.sensorValue.setText("Safety");
-                                            holder.backgroundLayout.setBackgroundResource(custombackground);
-                                            break;
-                                        }
                                         case "TemperatureSensor": {
                                             holder.sensorValue.setText("0 °C");
                                             break;
@@ -171,6 +180,12 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                                     holder.btPower.setBackgroundResource(power_off);
                                     break;
                                 }
+                                case "IrRemote":{
+                                    holder.btPower.setBackgroundResource(power_off);
+                                    holder.onOffStatus.setText("Off");
+                                    holder.irValue.setText("OFF");
+                                    break;
+                                }
                             }
                         }
                     }
@@ -189,6 +204,11 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                                 holder.btPower.setBackgroundResource(power_off);
                                 break;
                             }
+                            case "IrRemote":{
+                                holder.irValue.setText("");
+                                holder.btPower.setBackgroundResource(power_off);
+                                break;
+                            }
                         }
                         holder.connectStatus.setImageResource(status_offline);
                         holder.onOffStatus.setText("Offline");
@@ -200,12 +220,12 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                         @Override
                         public void onClick(View view) {
                             devices = (Devices) devicesList.get(position);
-
                             if (devices.getIsOnline() == 1) {
                                 if (getValue(devices) == 0) {
                                     holder.btPower.setBackgroundResource(power_on);
                                     holder.iconDevice.setImageResource(devices.deviceOn);
                                     devices.value.put("value", (float) 1);
+                                    if(devices.controlType.equals("IrRemote")) devices.value.put("value", (float) 23);
                                     holder.onOffStatus.setText("On");
                                 } else {
                                     holder.btPower.setBackgroundResource(power_off);
@@ -250,6 +270,17 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                             }
                         }
                     });
+                    ////
+                    if(devices.controlType.equals("IrRemote")) {
+                        holder.backgroundLayout.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View view) {
+                                if (listener != null) {
+                                    listener.onitemClick(position);
+                                }
+                            }
+                        });
+                    }
                 break;
             }
             case Room:{
@@ -270,6 +301,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
         ImageButton btPower;
         ImageView iconDevice;
         TextView deviceName;
+        TextView irValue;
         TextView onOffStatus;
         ImageView connectStatus;
         TextView sensorValue;
@@ -285,6 +317,7 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
             connectStatus=(ImageView) itemView.findViewById(R.id.connectStatus);
             sensorValue=(TextView) itemView.findViewById(R.id.sensorValue);
             drawValue=(SeekBar) itemView.findViewById(R.id.drawValue);
+            irValue=(TextView) itemView.findViewById(R.id.irValue);
         }
     }
     public class RoomNameHolder extends RecyclerView.ViewHolder{
