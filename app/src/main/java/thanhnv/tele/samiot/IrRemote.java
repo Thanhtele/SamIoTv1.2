@@ -115,6 +115,7 @@ public class IrRemote extends MainActivity {
                 }
                 else{
                     value=23;
+                    if(devices.deviceType.equals("Fan")) value=1;
                     devices.value.put("deviceValue", (float) value);
                     valueIR.setText(value + "°C");
                     irPowerBtn.setBackgroundResource(power_on);
