@@ -149,9 +149,12 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onitemClick(int position) {
-                Intent intent = new Intent(MainActivity.this,IrRemote.class);
-                intent.putExtra("Position",position);
-                startActivity(intent);
+                Devices devices = (Devices) dataRecyclerView.get(position);
+                if(devices.controlType.equals("IrRemote")) {
+                    Intent intent = new Intent(MainActivity.this, IrRemote.class);
+                    intent.putExtra("Position", position);
+                    startActivity(intent);
+                }
             }
         });
     }
