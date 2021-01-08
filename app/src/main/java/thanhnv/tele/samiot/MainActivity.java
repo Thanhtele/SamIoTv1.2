@@ -24,6 +24,7 @@ import android.widget.ImageButton;
 import android.widget.PopupMenu;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.Legend;
@@ -149,8 +150,9 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onitemClick(int position) {
+                //Toast.makeText(MainActivity.this,"Click on :"+position,Toast.LENGTH_SHORT).show();
                 Devices devices = (Devices) dataRecyclerView.get(position);
-                if(devices.controlType.equals("IrRemote")) {
+                if(devices.controlType.equals("IrRemote") && devices.isOnline==1) {
                     Intent intent = new Intent(MainActivity.this, IrRemote.class);
                     intent.putExtra("Position", position);
                     startActivity(intent);

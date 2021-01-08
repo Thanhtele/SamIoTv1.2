@@ -271,16 +271,14 @@ public class DeviceAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder>
                         }
                     });
                     ////
-                    if(devices.controlType.equals("IrRemote")) {
-                        holder.backgroundLayout.setOnClickListener(new View.OnClickListener() {
+                    holder.backgroundLayout.setOnClickListener(new View.OnClickListener() {
                             @Override
                             public void onClick(View view) {
                                 if (listener != null) {
                                     listener.onitemClick(position);
                                 }
                             }
-                        });
-                    }
+                    });
                 break;
             }
             case Room:{
